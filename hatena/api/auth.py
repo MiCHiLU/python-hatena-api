@@ -1,30 +1,36 @@
 import md5
-from urllib import urlencode
+from urllib import urlencode, urlopen
 from urlparse import urlunparse
 
-
-class Ua(object):
-    def __call__(self, auth):
-        result = auth._get_auth_as_json(auth)
-        if result.get("status"):
-            return result.get("user")
-        else:
-            return result.get("status")
+try:
+    import simplejson
+except ImportError:
+    raise Warning('Require simplejson. \
+                    http://cheeseshop.python.org/pypi/simplejson')
 
 
 class Auth(object):
+    api_path = "/api/auth.json"
     errstr = None
     host = "auth.hatena.ne.jp"
     path = "/auth"
     schema = "http"
-    ua = Ua()
 
     def __init__(self, api_key, secret):
         self.api_key = api_key
         self.secret = secret
 
-    def _get_auth_as_json(self):
-        return dict()
+    def _booleanize(self, obj):
+        class Dict(dict):
+            def __nonzero__(self):
+                return not self["has_error"]
+        result = Dict()
+        result.update(obj)
+        return result
+
+    def _get_auth_as_json(self, **kwargv):
+        return simplejson.loads(
+            urlopen(self.build_uri(self.api_path, **kwargv)).read())
 
     def api_sig(self, **kwargv):
         sig_dict = dict(
@@ -37,19 +43,21 @@ class Auth(object):
         [sig_list.extend((key, sig_dict[key])) for key in sig_keys]
         return md5.new("".join(sig_list)).hexdigest()
 
-    def login(self, var):
-        if var == "invalidfrob":
-            self.errstr = "Invalid API key"
-            return False
-        else:
-            return self.ua(self)
-
-    def uri_to_login(self, **kwargv):
+    def build_uri(self, path, **kwargv):
         query = dict(
             api_key = self.api_key,
             api_sig = self.api_sig(**kwargv),
         )
         query.update(kwargv)
         params = fragment = ""
-        return urlunparse((self.schema, self.host, self.path, params,
+        return urlunparse((self.schema, self.host, path, params,
             urlencode(query), fragment))
+
+    def login(self, cert):
+        result = self._booleanize(self._get_auth_as_json(cert=cert))
+        if not result:
+            self.errstr = result["error"]["message"]
+        return result
+
+    def uri_to_login(self, **kwargv):
+        return self.build_uri(self.path, **kwargv)
