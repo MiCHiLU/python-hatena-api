@@ -28,18 +28,16 @@ class Test(unittest.TestCase):
         )
         self.assertEqual("59d7fb76ceeacc8850ccd2428fd2b0f0",
             query.get("api_sig")[0])
-        self.assertEqual("bar",
-            query.get("foo")[0])
+        self.assertEqual("bar", query.get("foo")[0])
 
         query = cgi.parse_qs(
             urlparse(self.api.uri_to_login(foo="bar", bar="baz"))[4]
         )
         self.assertEqual("c166e2ea4984224375a88e080cd7cce6",
             query.get("api_sig")[0])
-        self.assertEqual("bar",
-            query.get("foo")[0])
-        self.assertEqual("baz",
-            query.get("bar")[0])
+        self.assertEqual("bar", query.get("foo")[0])
+        self.assertEqual("baz", query.get("bar")[0])
 
 
-unittest.main()
+if __name__ == "__main__":
+    unittest.main()
