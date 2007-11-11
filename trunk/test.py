@@ -52,7 +52,13 @@ class Test(unittest.TestCase):
         if not self.realtest:
             return
         self.setApi(self.api_key, self.secret)
-        self.assertEqual("", self.api.login(self.cert))
+        result = self.api.login(self.cert)
+        self.assertEqual(False, result["has_error"])
+        self.assertEqual([u'thumbnail_url', u'image_url', u'name'],
+            result["user"].keys())
+        result = self.api.login("failure")
+        self.assertEqual(True, result["has_error"])
+        self.assertEqual(u'Invalid cert', result["error"]["message"])
 
     def test_uri_to_login(self):
         self.assertEqual("auth.hatena.ne.jp",
@@ -95,7 +101,7 @@ if __name__ == "__main__":
             secret = sys.stdin.readline().strip()
         if not cert:
             api = hatena.api.Auth(api_key=api_key, secret=secret)
-            print "URI to Login: %s\nCERT: " % api.uri_to_login() ,
+            print "URI to Login:\n %s\nCERT: " % api.uri_to_login() ,
             cert = sys.stdin.readline().strip()
         realtest = True
     else:
