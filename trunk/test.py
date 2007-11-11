@@ -15,6 +15,27 @@ class Test(unittest.TestCase):
         self.assertEqual("8d03c299aa049c9e47e4f99e03f2df53",
             self.api.api_sig(api_key="test"))
 
+    def test_login_failure(self):
+        self.assertEqual(False, self.api.login("invalidfrob"))
+        self.assertEqual("Invalid API key", self.api.errstr)
+
+    def test_login_success(self):
+        self.api._get_auth_as_json = lambda x: dict(
+            status = True,
+            user = dict(
+                name = "naoya",
+                image_url = "http://www.hatena.ne.jp/users/na/naoya/profile.gif",
+                thumbnail_url = "http://www.hatena.ne.jp/users/na/naoya/profile_s.gif",
+            ),
+        )
+        user = self.api.login("dummy_frob")
+        self.assertTrue(user)
+        self.assertTrue(isinstance(user, dict))
+        #self.assertTrue(isinstance(user, hatena.api.auth.Ua))
+        self.assertEqual(user.get("name"), "naoya")
+        self.assertEqual(user.get("image_url"), "http://www.hatena.ne.jp/users/na/naoya/profile.gif")
+        self.assertEqual(user.get("thumbnail_url"), "http://www.hatena.ne.jp/users/na/naoya/profile_s.gif")
+
     def test_uri_to_login(self):
         self.assertEqual("auth.hatena.ne.jp",
             urlparse(self.api.uri_to_login())[1])
@@ -37,6 +58,9 @@ class Test(unittest.TestCase):
             query.get("api_sig")[0])
         self.assertEqual("bar", query.get("foo")[0])
         self.assertEqual("baz", query.get("bar")[0])
+
+    def test_ua(self):
+        self.assertTrue(isinstance(self.api.ua, hatena.api.auth.Ua))
 
 
 if __name__ == "__main__":
