@@ -58,6 +58,8 @@ class Test(unittest.TestCase):
             query.get("api_sig")[0])
         self.assertEqual("bar", query.get("foo")[0])
         self.assertEqual("baz", query.get("bar")[0])
+        self.assertEqual(['api_sig', 'api_key', 'bar', 'foo'],
+            query.keys())
 
     def test_ua(self):
         self.assertTrue(isinstance(self.api.ua, hatena.api.auth.Ua))
