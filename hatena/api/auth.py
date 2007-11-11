@@ -48,7 +48,6 @@ class Auth(object):
         query = dict(
             api_key = self.api_key,
             api_sig = self.api_sig(**kwargv),
-            secret = self.secret,
         )
         query.update(kwargv)
         params = fragment = ""
