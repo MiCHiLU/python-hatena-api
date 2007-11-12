@@ -26,9 +26,29 @@ class Test(unittest.TestCase):
         self.assertEqual("8d03c299aa049c9e47e4f99e03f2df53",
             self.api.api_sig(api_key="test"))
 
+    def test_ignore_true(self):
+        class DummyAuth(hatena.api.Auth):
+            host = "non-host"
+        self.api = DummyAuth("spam", "bacon")
+        self.assertEqual(False, self.api.login("egg").is_valid())
+        self.assertEqual(None, self.api.login("egg").has_error)
+        self.assertEqual('', self.api.login("egg").error["message"])
+
+    def test_ignore_false(self):
+        class DummyAuth(hatena.api.Auth):
+            host = "non-host"
+        self.api = DummyAuth("spam", "bacon", ignore=False)
+        self.assertRaises(Exception, self.api.login, "egg")
+
     def test_login_failure(self):
-        self.assertEqual(False, bool(self.api.login("invalidfrob")))
-        self.assertEqual("Invalid API key", self.api.errstr)
+        self.api._get_auth_as_json = lambda cert: dict(
+            has_error = True,
+            error = dict(
+                message ="Invalid signature",
+            ),
+        )
+        self.assertEqual(False, self.api.login("invalidfrob").is_valid())
+        self.assertEqual("Invalid signature", self.api.errstr)
 
     def test_login_success(self):
         self.api._get_auth_as_json = lambda cert: dict(
@@ -40,12 +60,12 @@ class Test(unittest.TestCase):
             ),
         )
         result = self.api.login(cert="dummy_frob")
-        self.assertTrue(bool(result))
-        self.assertTrue(isinstance(result, dict))
-        self.assertEqual(result["user"].get("name"), "naoya")
-        self.assertEqual(result["user"].get("image_url"),
+        self.assertEqual(True, result.is_valid())
+        self.assertTrue(isinstance(result, hatena.api.auth.ResultDict))
+        self.assertEqual(result.user.get("name"), "naoya")
+        self.assertEqual(result.user.get("image_url"),
             "http://www.hatena.ne.jp/users/na/naoya/profile.gif")
-        self.assertEqual(result["user"].get("thumbnail_url"),
+        self.assertEqual(result.user.get("thumbnail_url"),
             "http://www.hatena.ne.jp/users/na/naoya/profile_s.gif")
 
     def test_realtest(self):
@@ -53,12 +73,12 @@ class Test(unittest.TestCase):
             return
         self.setApi(self.api_key, self.secret)
         result = self.api.login(self.cert)
-        self.assertEqual(False, result["has_error"])
+        self.assertEqual(False, result.has_error)
         self.assertEqual([u'thumbnail_url', u'image_url', u'name'],
-            result["user"].keys())
+            result.user.keys())
         result = self.api.login("failure")
-        self.assertEqual(True, result["has_error"])
-        self.assertEqual(u'Invalid cert', result["error"]["message"])
+        self.assertEqual(True, result.has_error)
+        self.assertEqual(u'Invalid cert', result.error["message"])
 
     def test_uri_to_login(self):
         self.assertEqual("auth.hatena.ne.jp",
