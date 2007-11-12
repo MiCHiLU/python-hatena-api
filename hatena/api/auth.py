@@ -9,6 +9,21 @@ except ImportError:
                     http://cheeseshop.python.org/pypi/simplejson')
 
 
+class ResultDict(dict):
+    def __init__(self, simplejson_parsed_dict, *argv, **kwargv):
+        super(ResultDict, self).__init__(*argv, **kwargv)
+        self.update(simplejson_parsed_dict)
+
+    def __getattribute__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            return super(ResultDict, self).__getattribute__(name)
+
+    def is_valid(self):
+        return self.has_error is False
+
+
 class Auth(object):
     api_path = "/api/auth.json"
     errstr = None
@@ -16,21 +31,23 @@ class Auth(object):
     path = "/auth"
     schema = "http"
 
-    def __init__(self, api_key, secret):
+    def __init__(self, api_key, secret, ignore=None):
         self.api_key = api_key
         self.secret = secret
-
-    def _booleanize(self, obj):
-        class Dict(dict):
-            def __nonzero__(self):
-                return not self["has_error"]
-        result = Dict()
-        result.update(obj)
-        return result
+        if not ignore is None:
+            self.ignore = ignore
+        else:
+            self.ignore = True
 
     def _get_auth_as_json(self, **kwargv):
-        return simplejson.loads(
-            urlopen(self.build_uri(self.api_path, **kwargv)).read())
+        try:
+            return simplejson.loads(
+                urlopen(self.build_uri(self.api_path, **kwargv)).read())
+        except:
+            if self.ignore:
+                return dict(has_error=None, error=dict(message=""))
+            else:
+                raise
 
     def api_sig(self, **kwargv):
         sig_dict = dict(
@@ -54,9 +71,9 @@ class Auth(object):
             urlencode(query), fragment))
 
     def login(self, cert):
-        result = self._booleanize(self._get_auth_as_json(cert=cert))
-        if not result:
-            self.errstr = result["error"]["message"]
+        result = ResultDict(self._get_auth_as_json(cert=cert))
+        if not result.is_valid():
+            self.errstr = result.error["message"]
         return result
 
     def uri_to_login(self, **kwargv):
